@@ -54,16 +54,18 @@ typedef struct{
   void* next;
   void* prev;
 } entry_t;
-/*
+
 typedef struct{
-  entry_t* first;
+  void* first;
 } page_t;
-*/
+
 /************Global Variables*********************************************/
 kma_page_t* gpage_entry = NULL;
 /************Function Prototypes******************************************/
 /* initialize a new page */
 void init_page(kma_page_t* page);
+/* change an entry */
+void change_entry(void* entry, int size);
 /* add an entry */
 void add_entry(void* entry, int size);
 /* delete an entry */
@@ -77,16 +79,16 @@ void* first_fit(kma_size_t size);
 void*
 kma_malloc(kma_size_t size)
 {
-  malloc_size = size + sizeof(void*);
+  int malloc_size = size + sizeof(void*);
   if(malloc_size > PAGESIZE)
     return NULL;
   if(!gpage_entry)
     {
-      gpage_entry = getpage();
+      gpage_entry = get_page();
       init_page(gpage_entry);
     } 
-  void* first-fit = first_fit(size);
-  
+  void* _first_fit = first_fit(size);
+  return _first_fit;
 }
 
 void add_entry(void* entry, int size)
@@ -98,23 +100,52 @@ void add_entry(void* entry, int size)
 
 void init_page(kma_page_t* page)
 {
-  *((kma_page_t**)page->ptr) = page;
-  add_entry(page->ptr+sizeof(kma_page_t*), PAGESIZE - sizeof(kma_page_t*));  
+  page_t* frontpage = NULL;
+  frontpage->first = (page_t*)(page->ptr + sizeof(page_t*));
+  add_entry(frontpage->first, PAGESIZE - sizeof(page_t*));  
 }
 
 void delete_entry(entry_t* entry)
 {
 }
 
+void change_entry(void* entry, int offset, int size)
+{
+}
+
 void* first_fit(kma_size_t size) 
 {
-  return NULL;
+  int min_size = sizeof(entry_t*);
+  entry_t* entry = (entry_t*)(gpage_entry->ptr);
+  while(entry)
+    {
+      if(size < min_size)
+	size = min_size;
+      if(size > entry->size)
+	{
+	  entry = entry->next;
+	  continue;
+	}
+      else if(size >=  entry->size - min_size)
+	{
+	  delete_entry(entry);
+	  return (void*)entry;
+	}
+      else
+	{
+	  add_entry((void*)(entry + size), entry->size - size);
+	  delete_entry(entry);
+	  return (void*)entry;
+	}
+    }
+  kma_page_t* new_page = get_page();
+  init_page(new_page);
+  return first_fit(size);
 }
 
 void
 kma_free(void* ptr, kma_size_t size)
-{
-  
+{  
 }
 
 #endif // KMA_RM
