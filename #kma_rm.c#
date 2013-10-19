@@ -48,73 +48,25 @@
  *  variables should be in all lower case. When initializing
  *  structures and arrays, line everything up in neat columns.
  */
-typedef struct{
-  int size;
-  //void* entry;
-  void* next;
-  void* prev;
-} entry_t;
-/*
-typedef struct{
-  entry_t* first;
-} page_t;
-*/
+
 /************Global Variables*********************************************/
-kma_page_t* gpage_entry = NULL;
+
 /************Function Prototypes******************************************/
-/* initialize a new page */
-void init_page(kma_page_t* page);
-/* add an entry */
-void add_entry(void* entry, int size);
-/* delete an entry */
-void delete_entry(entry_t* entry);
-/* search free memory based on first-fit  */
-void* first_fit(kma_size_t size);
+
 /************External Declaration*****************************************/
 
 /**************Implementation***********************************************/
 
 void*
 kma_malloc(kma_size_t size)
-{
-  malloc_size = size + sizeof(void*);
-  if(malloc_size > PAGESIZE)
-    return NULL;
-  if(!gpage_entry)
-    {
-      gpage_entry = getpage();
-      init_page(gpage_entry);
-    } 
-  void* first-fit = first_fit(size);
-  
-}
-
-void add_entry(void* entry, int size)
-{
-  ((entry_t*)entry)->size = size;
-  ((entry_t*)entry)->prev = NULL;
-  ((entry_t*)entry)->next = NULL;
-}
-
-void init_page(kma_page_t* page)
-{
-  *((kma_page_t**)page->ptr) = page;
-  add_entry(page->ptr+sizeof(kma_page_t*), PAGESIZE - sizeof(kma_page_t*));  
-}
-
-void delete_entry(entry_t* entry)
-{
-}
-
-void* first_fit(kma_size_t size) 
-{
+{ 
   return NULL;
 }
 
 void
 kma_free(void* ptr, kma_size_t size)
 {
-  
+  ;
 }
 
 #endif // KMA_RM
