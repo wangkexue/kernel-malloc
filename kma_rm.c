@@ -58,6 +58,7 @@ typedef struct{
 
 typedef struct{
   void* first;
+  //void* second;
 } page_t;
 
 /************Global Variables*********************************************/
@@ -87,13 +88,24 @@ kma_malloc(kma_size_t size)
   if(!gpage_entry)
     {
       gpage_entry = get_page();
-      *((kma_page_t**)gpage_entry->ptr) = gpage_entry;      
+       *((kma_page_t**)gpage_entry->ptr) = gpage_entry;      
       init_page(gpage_entry);
-      printf("init success\n");
+      //printf("init success\n");
       gflag = 1;
     } 
   void* _first_fit = first_fit(size);
-  printf("first_fit success\n");
+  //printf("first_fit success\n");
+  
+  page_t* first_page = (page_t*)(gpage_entry->ptr);
+  entry_t* entry = (entry_t*)(first_page->first);  
+  int i;
+  for(i=0;entry->next != NULL;i++)
+    {
+      printf("%d: %d\n", i, entry->size);
+      entry = (entry_t*)(entry->next);
+    }
+  printf("%d: %d\n", i, entry->size);
+  
   return _first_fit;
 }
 
@@ -103,40 +115,50 @@ void add_entry(void* entry, int size)
  ((entry_t*)entry)->prev = NULL;
 
  page_t* first_page = (page_t*)(gpage_entry->ptr);
- void* first_entry = first_page->first;
+ void** first_entry = first_page->first;
+ 
+ //if(entry > first_entry)
+ // printf("T\n");
+
  if(entry == first_entry)
    // add first entry
    (((entry_t*)entry)->next) = NULL;
  else
    {
-     while(((entry_t*)first_entry)->next != NULL && entry > first_entry)
+     while(((entry_t*)first_entry)->next != NULL && entry > *first_entry)
        {
-	 first_entry = ((entry_t*)first_entry)->next;
+	 first_entry =((void*)(((entry_t*)first_entry)->next));
        }
-     entry_t* temp = ((entry_t*)first_entry)->next;
+
+     void* temp = ((entry_t*)first_entry)->next;
+     /*
      if(temp != NULL)
-       temp->prev = entry;
-     ((entry_t*)first_entry)->next = entry;
-     ((entry_t*)entry)->prev = first_entry;
-     ((entry_t*)entry)->next = temp;
-     printf("add entry success\n");
-     /* 
-     if(temp == NULL)
+      {
+	((entry_t*)temp)->prev = entry;
+	printf("No\n");
+      }
+    ((entry_t*)first_entry)->next = entry;
+    ((entry_t*)entry)->prev = first_entry;
+    ((entry_t*)entry)->next = temp;
+     */ 
+     
+      if(temp == NULL)
        {
-	 ((entry_t*)entry)->next = NULL;
+	 //printf("temp==null\n");
+	 ((entry_t*)first_entry)->next = entry;
 	 ((entry_t*)entry)->prev = first_entry;
-	 temp = entry;
+	 ((entry_t*)entry)->next = NULL;
        }
      else
        {
+	 printf("No\n");
 	 ((entry_t*)entry)->next = first_entry;
 	 ((entry_t*)entry)->prev = ((entry_t*)first_entry)->prev;
 	 ((entry_t*)first_entry)->prev = entry;
 	 ((entry_t*)((entry_t*)first_entry)->prev)->next = entry;
        }
-     */
+     
    }
-  
 }
 
 void init_page(kma_page_t* page)
@@ -146,15 +168,21 @@ void init_page(kma_page_t* page)
       // what if the first page is freed?
       page_t* first_page;
       first_page = (page_t*)page->ptr;
-      first_page->first = (void*)(page->ptr + sizeof(page_t*));
-      add_entry(page->ptr + sizeof(page_t*), PAGESIZE - sizeof(page_t*));
+      first_page->first = page->ptr + sizeof(page_t*);
+      add_entry((void*)(page->ptr + sizeof(page_t*)), PAGESIZE - sizeof(page_t*));
     }
   else
-    add_entry(page->ptr, PAGESIZE);  
+    {
+      //if(page->ptr > gpage_entry->ptr)
+      //printf("new_page->ptr > gpage_entry->ptr");
+      add_entry((void*)(page->ptr), PAGESIZE);
+      //printf("init-page success");
+    }  
 }
 
 void delete_entry(entry_t* entry)
 {
+  //printf("delete entry success\n");
   if(entry->prev == NULL && entry->next == NULL)    
     // delete the only entry
     {
@@ -167,7 +195,7 @@ void delete_entry(entry_t* entry)
     {
       ((entry_t*)(entry->next))->prev = NULL;
       page_t* first_page = (page_t*)(gpage_entry->ptr);
-      first_page->first = (void*)(entry->next);
+      first_page->first = entry->next;
       return;
     }
   else if(entry->next == NULL)
@@ -195,10 +223,11 @@ void* first_fit(kma_size_t size)
   entry_t* entry = (entry_t*)(first_page->first);
   if(size < min_size)
     size = min_size;
-  while(entry)
+  while(entry != NULL)
     {
        if(size > entry->size)
 	{
+	  //printf("bad-entry-size: %d\n", entry->size);
 	  entry = entry->next;
 	  continue;
 	}
@@ -209,12 +238,19 @@ void* first_fit(kma_size_t size)
 	}
       else
 	{
+	  //printf("good-entry-size: %d\n", entry->size);
 	  add_entry((void*)(entry + size), entry->size - size);
+	  //printf("add_entry in first_fit\n");
 	  delete_entry(entry);
+	  //printf("delete_entry in first_fit\n");
 	  return (void*)entry;
 	}
     }
   kma_page_t* new_page = get_page();
+  *((kma_page_t**)new_page->ptr) = new_page;
+  //if(new_page->ptr > gpage_entry->ptr)
+  //printf("new_page > gpage_entry");
+  //printf("get_page()\n");
   init_page(new_page);
   return first_fit(size);
 }
