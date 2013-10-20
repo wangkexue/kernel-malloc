@@ -114,12 +114,24 @@ void add_entry(void* entry, int size)
 	 first_entry = ((entry_t*)first_entry)->next;
        }
      entry_t* temp = ((entry_t*)first_entry)->next;
-     if(temp != NULL)
-       temp->prev = entry;
+
+   	  if(temp == NULL)
+     	// temp->prev = entry;
+  {	     
      ((entry_t*)first_entry)->next = entry;
      ((entry_t*)entry)->prev = first_entry;
      ((entry_t*)entry)->next = temp;
-     printf("add entry success\n");
+   }
+/*   else
+    {
+	entry_t* temp = ((entry_t*)first_entry)->prev;
+	temp->next = entry;
+	((entry_t*)first_entry)->prev = entry;
+     ((entry_t*)entry)->next = first_entry;
+     ((entry_t*)entry)->first = temp;
+     }
+*/
+  printf("add entry success\n");
      /* 
      if(temp == NULL)
        {
