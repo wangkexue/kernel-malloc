@@ -54,18 +54,19 @@ typedef struct{
   void* next;
   void* prev;
 } entry_t;
-
+/*
 typedef struct{
   void* first;
 } page_t;
-
+*/
 /************Global Variables*********************************************/
 kma_page_t* gpage_entry = NULL;
+int gflag = 0;
 /************Function Prototypes******************************************/
 /* initialize a new page */
 void init_page(kma_page_t* page);
 /* change an entry */
-void change_entry(void* entry, int size);
+void* change_entry(void* entry, int offset, int size);
 /* add an entry */
 void add_entry(void* entry, int size);
 /* delete an entry */
@@ -85,7 +86,9 @@ kma_malloc(kma_size_t size)
   if(!gpage_entry)
     {
       gpage_entry = get_page();
+      *((kma_page_t**)gpage_entry->ptr) = gpage_entry;      
       init_page(gpage_entry);
+      gflag = 1;
     } 
   void* _first_fit = first_fit(size);
   return _first_fit;
@@ -93,23 +96,82 @@ kma_malloc(kma_size_t size)
 
 void add_entry(void* entry, int size)
 {
-  ((entry_t*)entry)->size = size;
-  ((entry_t*)entry)->prev = NULL;
-  ((entry_t*)entry)->next = NULL;
+ ((entry_t*)entry)->size = size;
+ ((entry_t*)entry)->prev = NULL;
+
+ void* first_entry = (void*)(gpage_entry->ptr+sizeof(entry_t*));
+ if(entry == first_entry)
+   (((entry_t*)entry)->next) = NULL;
+ else
+   {
+     while(((entry_t*)first_entry)->next != NULL && entry > first_entry)
+       {
+	 first_entry = ((entry_t*)first_entry)->next;
+       }
+     entry_t* temp = ((entry_t*)first_entry)->next; 
+     if(temp == NULL)
+       {
+	 ((entry_t*)entry)->next = NULL;
+	 ((entry_t*)entry)->prev = first_entry;
+	 temp = entry;
+       }
+     else
+       {
+	 ((entry_t*)entry)->next = first_entry;
+	 ((entry_t*)entry)->prev = ((entry_t*)first_entry)->prev;
+	 ((entry_t*)first_entry)->prev = entry;
+	 ((entry_t*)((entry_t*)first_entry)->prev)->next = entry;
+       }
+       
+
+   }
+  
 }
 
 void init_page(kma_page_t* page)
 {
-  page_t* frontpage = NULL;
-  frontpage->first = (page_t*)(page->ptr + sizeof(page_t*));
-  add_entry(frontpage->first, PAGESIZE - sizeof(page_t*));  
+  //page_t* frontpage = NULL;
+  //frontpage->first = (page_t*)(page->ptr + sizeof(page_t*));
+  if(gflag == 0)
+    {
+      // still need test
+      page->ptr = page->ptr + sizeof(entry_t*);
+      add_entry(page->ptr, PAGESIZE - sizeof(entry_t*));
+    }
+  else
+    add_entry(page->ptr, PAGESIZE);  
 }
 
 void delete_entry(entry_t* entry)
 {
+  if(entry->prev == NULL && entry->next == NULL)    
+    // delete the only entry
+    {
+      free_page(gpage_entry);
+      gpage_entry = NULL;
+      return;
+    }
+  else if(entry->prev == NULL)   
+    // delete the first entry
+    {
+      (entry->next)->prev = NULL;
+      return;
+    }
+  else if(entry->next == NULL)
+    // delete the last entry
+    {
+      (entry->prev)->next = NULL;
+      return;
+    }
+  else
+    // delete the middle entry
+    {
+      (entry->prev)->next = entry->next;
+      (entry->next)->prev = entry->prev;
+    }
 }
 
-void change_entry(void* entry, int offset, int size)
+void* change_entry(void* entry, int offset, int size)
 {
 }
 
@@ -117,11 +179,11 @@ void* first_fit(kma_size_t size)
 {
   int min_size = sizeof(entry_t*);
   entry_t* entry = (entry_t*)(gpage_entry->ptr);
+  if(size < min_size)
+    size = min_size;
   while(entry)
     {
-      if(size < min_size)
-	size = min_size;
-      if(size > entry->size)
+       if(size > entry->size)
 	{
 	  entry = entry->next;
 	  continue;
@@ -133,8 +195,8 @@ void* first_fit(kma_size_t size)
 	}
       else
 	{
-	  add_entry((void*)(entry + size), entry->size - size);
-	  delete_entry(entry);
+	  //add_entry((void*)(entry + size), entry->size - size);
+	  //delete_entry(entry);
 	  return (void*)entry;
 	}
     }
