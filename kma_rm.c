@@ -139,7 +139,7 @@ void add_entry(void* entry, int size)
        }
      else
        {
-	 printf("No\n");
+	 //printf("No\n");
 	 ((entry_t*)entry)->next = first_entry;
 	 ((entry_t*)entry)->prev = ((entry_t*)first_entry)->prev;
 	 ((entry_t*)((entry_t*)first_entry)->prev)->next = entry;
@@ -179,7 +179,7 @@ void delete_entry(entry_t* entry)
   else if(entry->prev == NULL)   
     // delete the first entry
     {
-      ((entry_t*)(entry->next))->prev = NULL;
+      ((entry_t*)(entry->next))->prev = (entry_t*)(entry->prev);
       page_t* first_page = (page_t*)(gpage_entry->ptr);
       first_page->first = entry->next;
       return;
@@ -204,7 +204,8 @@ void* change_entry(void* entry, int offset, int size)
 */
 void* first_fit(kma_size_t size) 
 {
-  int min_size = sizeof(entry_t*);
+  int min_size = sizeof(entry_t);
+  printf("min_size: %d.\n",min_size);
   page_t* first_page = (page_t*)(gpage_entry->ptr);
   entry_t* entry = (entry_t*)(first_page->first);
   //printf("first fit first entry: %x.\n", entry);
