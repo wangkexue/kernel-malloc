@@ -104,7 +104,8 @@ kma_malloc(kma_size_t size)
       printf("%d: %d\n", i, entry->size);
       entry = (entry_t*)(entry->next);
     }
-  printf("%d: %d\n", i, entry->size);
+   printf("%d: %d\n", i, entry->size);
+   printf("\n");
   
   return _first_fit;
 }
@@ -112,9 +113,9 @@ kma_malloc(kma_size_t size)
 void add_entry(void* entry, int size)
 {
  ((entry_t*)entry)->size = size;
- printf("entry->size: %d\n", ((entry_t*)entry)->size);
+ //printf("entry->size: %d\n", ((entry_t*)entry)->size);
  ((entry_t*)entry)->prev = NULL;
- printf("This entry: %x will be added.\n", entry);
+ //printf("This entry: %x will be added.\n", entry);
  page_t* first_page = (page_t*)(gpage_entry->ptr);
  void** first_entry = first_page->first;
  //printf("first_entry: %x\n", first_entry);
@@ -139,12 +140,10 @@ void add_entry(void* entry, int size)
      else
        {
 	 printf("No\n");
-	 /*
 	 ((entry_t*)entry)->next = first_entry;
 	 ((entry_t*)entry)->prev = ((entry_t*)first_entry)->prev;
-	 ((entry_t*)first_entry)->prev = entry;
 	 ((entry_t*)((entry_t*)first_entry)->prev)->next = entry;
-	 */
+	 ((entry_t*)first_entry)->prev = entry;
        }
    }
 }
@@ -161,8 +160,8 @@ void init_page(kma_page_t* page)
     }
   else
     {
-      printf("new_page->ptr: %x\n", page->ptr);
-      printf("a new page comes\n");
+      // printf("new_page->ptr: %x\n", page->ptr);
+      //printf("a new page comes\n");
       add_entry((void*)(page->ptr), PAGESIZE);
     }  
 }
@@ -208,7 +207,7 @@ void* first_fit(kma_size_t size)
   int min_size = sizeof(entry_t*);
   page_t* first_page = (page_t*)(gpage_entry->ptr);
   entry_t* entry = (entry_t*)(first_page->first);
-  printf("first fit first entry: %x.\n", entry);
+  //printf("first fit first entry: %x.\n", entry);
   //entry_t* temp;
   if(size < min_size)
     size = min_size;
@@ -238,7 +237,7 @@ void* first_fit(kma_size_t size)
   kma_page_t* new_page = get_page();
   *((kma_page_t**)new_page->ptr) = new_page;
   //if(new_page->ptr > gpage_entry->ptr)
-  printf("new_page %x\n", new_page->ptr);
+  //printf("new_page %x\n", new_page->ptr);
   //printf("get_page()\n");
   init_page(new_page);
   return first_fit(size);
