@@ -161,12 +161,9 @@ void init_page(kma_page_t* page)
     }
   else
     {
-      //if(page->ptr > gpage_entry->ptr)
       printf("new_page->ptr: %x\n", page->ptr);
-      printf("PAGESIZE %d\n", PAGESIZE);
       printf("a new page comes\n");
       add_entry((void*)(page->ptr), PAGESIZE);
-      //printf("init-page success");
     }  
 }
 
@@ -231,7 +228,7 @@ void* first_fit(kma_size_t size)
       else
 	{
 	  //printf("good-entry-size: %d\n", entry->size);
-	  add_entry((void*)(entry + size), entry->size - size);
+	  add_entry((void*)(entry) + size, entry->size - size);
 	  //printf("add_entry in first_fit\n");
 	  delete_entry(entry);
 	  //printf("delete_entry in first_fit\n");
