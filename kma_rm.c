@@ -90,12 +90,9 @@ kma_malloc(kma_size_t size)
       gpage_entry = get_page();
        *((kma_page_t**)gpage_entry->ptr) = gpage_entry;      
       init_page(gpage_entry);
-      //printf("init success\n");
       gflag = 1;
     } 
   void* _first_fit = first_fit(size);
-  //printf("first_fit success\n");
-  
   page_t* first_page = (page_t*)(gpage_entry->ptr);
   entry_t* entry = (entry_t*)(first_page->first);  
   int i;
@@ -113,14 +110,10 @@ kma_malloc(kma_size_t size)
 void add_entry(void* entry, int size)
 {
  ((entry_t*)entry)->size = size;
- //printf("entry->size: %d\n", ((entry_t*)entry)->size);
  ((entry_t*)entry)->prev = NULL;
- //printf("This entry: %x will be added.\n", entry);
  page_t* first_page = (page_t*)(gpage_entry->ptr);
  void** first_entry = first_page->first;
- //printf("first_entry: %x\n", first_entry);
  if(entry == first_entry)
-   // add first entry
    (((entry_t*)entry)->next) = NULL;
  else
    {
@@ -132,14 +125,12 @@ void add_entry(void* entry, int size)
      void* temp = ((entry_t*)first_entry)->next;
       if(temp == NULL)
        {
-	 //printf("temp==null\n");
 	 ((entry_t*)first_entry)->next = entry;
 	 ((entry_t*)entry)->prev = first_entry;
 	 ((entry_t*)entry)->next = NULL;
        }
      else
        {
-	 //printf("No\n");
 	 ((entry_t*)entry)->next = first_entry;
 	 ((entry_t*)entry)->prev = ((entry_t*)first_entry)->prev;
 	 ((entry_t*)((entry_t*)first_entry)->prev)->next = entry;
@@ -160,20 +151,19 @@ void init_page(kma_page_t* page)
     }
   else
     {
-      // printf("new_page->ptr: %x\n", page->ptr);
-      //printf("a new page comes\n");
       add_entry((void*)(page->ptr), PAGESIZE);
     }  
 }
 
 void delete_entry(entry_t* entry)
 {
-  //printf("delete entry success\n");
   if(entry->prev == NULL && entry->next == NULL)    
     // delete the only entry
     {
-      //free_page(gpage_entry);
-      gpage_entry = NULL;
+      page_t* first_page = (page_t*)(gpage_entry->ptr);
+      first_page->first = NULL;
+      //printf("entry %x\n", entry);
+      //entry = NULL;
       return;
     }
   else if(entry->prev == NULL)   
@@ -205,7 +195,6 @@ void* change_entry(void* entry, int offset, int size)
 void* first_fit(kma_size_t size) 
 {
   int min_size = sizeof(entry_t);
-  printf("min_size: %d.\n",min_size);
   page_t* first_page = (page_t*)(gpage_entry->ptr);
   entry_t* entry = (entry_t*)(first_page->first);
   //printf("first fit first entry: %x.\n", entry);
