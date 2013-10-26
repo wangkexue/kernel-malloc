@@ -277,12 +277,9 @@ kma_free(void* ptr, kma_size_t size)
     {
       add_entry(ptr, size);
     }
-  while(first_entry->next != NULL)
+  while(first_entry->next != NULL && ptr > (void*)first_entry)
     {
-      if(ptr > (void*)first_entry)
-	{
-	  first_entry = first_entry->next;
-	}
+      first_entry = (entry_t*)first_entry->next;
     }
   entry_t* prev = (entry_t*)first_entry->prev;
   entry_t* next = (entry_t*)first_entry->next;
