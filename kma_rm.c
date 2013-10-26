@@ -270,6 +270,9 @@ void* first_fit(kma_size_t size)
 void
 kma_free(void* ptr, kma_size_t size)
 {
+  int min_size = sizeof(entry_t);
+  if(size < min_size)
+    size = min_size;
   page_t* first_page = (page_t*)gpage_entry->ptr;
   entry_t* first_entry = (entry_t*)first_page->first;
   if(first_entry == NULL)
