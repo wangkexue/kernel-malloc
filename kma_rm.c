@@ -64,7 +64,7 @@ typedef struct{
 /************Global Variables*********************************************/
 kma_page_t* gpage_entry = NULL;
 int gflag = 0;
-int gnum = 0; // for debug
+//int gnum = 0; // for debug
 /************Function Prototypes******************************************/
 /* initialize a new page */
 void init_page(kma_page_t* page);
@@ -83,9 +83,9 @@ void* first_fit(kma_size_t size);
 void*
 kma_malloc(kma_size_t size)
 {
-  printf("num: %d; size: %d\n", gnum, size);
-  gnum++;
-  printf("begin\n");
+  //printf("num: %d; size: %d\n", gnum, size);
+  //gnum++;
+  //printf("begin\n");
   int malloc_size = size + sizeof(void*);
   if(malloc_size > PAGESIZE)
     return NULL;
@@ -98,7 +98,7 @@ kma_malloc(kma_size_t size)
     }
    
   void* _first_fit = first_fit(size);
-  
+  /*  
   page_t* first_page = (page_t*)(gpage_entry->ptr);
   entry_t* entry = (entry_t*)(first_page->first);
   if(entry)
@@ -116,6 +116,7 @@ kma_malloc(kma_size_t size)
 	}
     }
   printf("end\n");
+  */
   return _first_fit;
 }
 
@@ -125,6 +126,8 @@ void add_entry(void* entry, int size)
  ((entry_t*)entry)->prev = NULL;
  page_t* first_page = (page_t*)(gpage_entry->ptr);
  void** first_entry = first_page->first;
+ //  printf("this entry %x will be added\n", entry);
+ // printf("first entry %x\n", first_entry);
  if(entry == first_entry)
    (((entry_t*)entry)->next) = NULL;
  else
@@ -133,8 +136,9 @@ void add_entry(void* entry, int size)
        {
 	 first_entry =((void*)(((entry_t*)first_entry)->next));
        }
+     //printf("first_entry while next %x\n", first_entry);
      void* temp = ((entry_t*)first_entry)->next;
-      if(temp == NULL)
+     if(temp == NULL && (void**)entry > first_entry)
        {
 	 //printf("temp == NULL\n");
 	 ((entry_t*)first_entry)->next = entry;
@@ -143,6 +147,8 @@ void add_entry(void* entry, int size)
        }
      else
        {
+	 //printf("(next)->prev->next %x\n", ((entry_t*)((entry_t*)first_entry)->prev)->next);
+	 //printf("%x\n", ((entry_t*)((entry_t*)(*first_entry))->prev)->next);
 	 ((entry_t*)entry)->next = first_entry;
 	 ((entry_t*)entry)->prev = ((entry_t*)first_entry)->prev;
 	 ((entry_t*)((entry_t*)first_entry)->prev)->next = entry;
@@ -175,6 +181,7 @@ void init_page(kma_page_t* page)
 
 void delete_entry(entry_t* entry)
 {
+  //printf("this entry %x will be deleted\n", entry);
   if(entry->prev == NULL && entry->next == NULL)    
     // delete the only entry
     {
@@ -182,16 +189,17 @@ void delete_entry(entry_t* entry)
       page_t* first_page = (page_t*)(gpage_entry->ptr);
       first_page->first = NULL;
       gflag = 2;
-      //printf("entry %x\n", entry);
-      //entry = NULL;
       return;
     }
   else if(entry->prev == NULL)   
     // delete the first entry
     {
-      ((entry_t*)(entry->next))->prev = (entry_t*)(entry->prev);
+      //((entry_t*)(entry->next))->prev = (entry_t*)(entry->prev);
       page_t* first_page = (page_t*)(gpage_entry->ptr);
+      //printf("first entry before delete_entry %x\n", first_page->first);
       first_page->first = entry->next;
+      ((entry_t*)(entry->next))->prev = NULL;
+      //printf("first entry after delete_entry %x\n", first_page->first);
       return;
     }
   else if(entry->next == NULL)
