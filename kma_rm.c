@@ -284,8 +284,8 @@ kma_free(void* ptr, kma_size_t size)
   entry_t* prev = (entry_t*)first_entry->prev;
   entry_t* next = (entry_t*)first_entry->next;
   if(prev == NULL){
-    // free before first entry
-      if(ptr + size == first_entry)
+    // free before first entry      
+    if(ptr + size == first_entry && BASEADDR(ptr) == BASEADDR(first_entry))
 	{
 	  size += first_entry->size;
 	  add_entry(ptr, size);
@@ -297,7 +297,7 @@ kma_free(void* ptr, kma_size_t size)
   else if(next == NULL && ptr > (void*)first_entry)
     {
       // free after last entry
-      if(first_entry + first_entry->size == ptr)
+      if(first_entry + first_entry->size == ptr && BASEADDR(ptr) == BASEADDR(first_entry))
 	{
 	  size += first_entry->size;
 	  delete_entry(first_entry);
@@ -310,19 +310,21 @@ kma_free(void* ptr, kma_size_t size)
     // free inbetween
     {
       if(ptr + size == first_entry &&
-	 prev + prev->size == ptr)
+	 prev + prev->size == ptr && 
+	 BASEADDR(ptr) == BASEADDR(prev) &&
+	 BASEADDR(ptr) == BASEADDR(first_entry))
 	{
 	  delete_entry(first_entry);
 	  delete_entry(prev);
 	  add_entry(prev, size + prev->size + first_entry->size);
 	}
-      else if(ptr + size == first_entry)
+      else if(ptr + size == first_entry && BASEADDR(ptr) == BASEADDR(first_entry))
 	{
 	  size += first_entry->size;
 	  add_entry(ptr, size);
 	  delete_entry(first_entry);
 	}
-      else if(prev + prev->size == ptr)
+      else if(prev + prev->size == ptr && BASEADDR(ptr) == BASEADDR(prev))
 	{
 	  delete_entry(prev);
 	  add_entry(prev, size + prev->size);
