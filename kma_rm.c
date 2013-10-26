@@ -130,6 +130,12 @@ void add_entry(void* entry, int size)
  // printf("first entry %x\n", first_entry);
  if(entry == first_entry)
    (((entry_t*)entry)->next) = NULL;
+ else if ((void**)entry < first_entry)
+   {
+     ((entry_t*)entry)->next = first_entry;
+     ((entry_t*)first_entry)->prev = entry;
+     first_page->first = entry;
+   }
  else
    {
      while(((entry_t*)first_entry)->next != NULL && (void**)entry > first_entry)
@@ -263,7 +269,72 @@ void* first_fit(kma_size_t size)
 
 void
 kma_free(void* ptr, kma_size_t size)
-{  
+{
+  page_t* first_page = (page_t*)gpage_entry->ptr;
+  entry_t* first_entry = (entry_t*)first_page->first;
+  if(first_entry == NULL)
+    // all the pages are allocated
+    {
+      add_entry(ptr, size);
+    }
+  while(first_entry->next != NULL)
+    {
+      if(ptr > (void*)first_entry)
+	{
+	  first_entry = first_entry->next;
+	}
+    }
+  entry_t* prev = (entry_t*)first_entry->prev;
+  entry_t* next = (entry_t*)first_entry->next;
+  if(prev == NULL){
+    // free before first entry
+      if(ptr + size == first_entry)
+	{
+	  size += first_entry->size;
+	  add_entry(ptr, size);
+	  delete_entry(first_entry);
+	}
+      else
+	add_entry(ptr, size);
+    }
+  else if(next == NULL && ptr > (void*)first_entry)
+    {
+      // free after last entry
+      if(first_entry + first_entry->size == ptr)
+	{
+	  size += first_entry->size;
+	  delete_entry(first_entry);
+	  add_entry(first_entry, size);
+	}
+      else
+	add_entry(ptr, size);
+    }
+  else
+    // free inbetween
+    {
+      if(ptr + size == first_entry &&
+	 prev + prev->size == ptr)
+	{
+	  delete_entry(first_entry);
+	  delete_entry(prev);
+	  add_entry(prev, size + prev->size + first_entry->size);
+	}
+      else if(ptr + size == first_entry)
+	{
+	  size += first_entry->size;
+	  add_entry(ptr, size);
+	  delete_entry(first_entry);
+	}
+      else if(prev + prev->size == ptr)
+	{
+	  delete_entry(prev);
+	  add_entry(prev, size + prev->size);
+	}
+      else
+	add_entry(ptr, size);
+    }
+    
+    
 }
 
 #endif // KMA_RM
