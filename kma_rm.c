@@ -66,7 +66,7 @@ typedef struct{
 /************Global Variables*********************************************/
 kma_page_t* gpage_entry = NULL;
 //int gflag = 0;
-int gnum = 0; // for debug
+//int gnum = 0; // for debug
 /************Function Prototypes******************************************/
 /* initialize a new page */
 void init_page(kma_page_t* page, int gflag);
