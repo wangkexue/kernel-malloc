@@ -57,17 +57,19 @@ typedef struct{
 } entry_t;
 
 typedef struct{
+  int gflag;
+  int page_count;
   void* first;
   //void* ptr;
 } page_t;
 
 /************Global Variables*********************************************/
 kma_page_t* gpage_entry = NULL;
-int gflag = 0;
+//int gflag = 0;
 int gnum = 0; // for debug
 /************Function Prototypes******************************************/
 /* initialize a new page */
-void init_page(kma_page_t* page);
+void init_page(kma_page_t* page, int gflag);
 /* add an entry */
 void add_entry(void* entry, int size);
 /* delete an entry */
@@ -81,22 +83,23 @@ void* first_fit(kma_size_t size);
 void*
 kma_malloc(kma_size_t size)
 {
-  printf("num: %d; size: %d\n", gnum, size);
-  gnum++;
-  printf("begin\n");
+  //printf("num: %d; size: %d\n", gnum, size);
+  //gnum++;
+  //printf("begin\n");
   int malloc_size = size + sizeof(void*);
   if(malloc_size > PAGESIZE)
     return NULL;
   if(!gpage_entry)
     {
       gpage_entry = get_page();
-       *((kma_page_t**)gpage_entry->ptr) = gpage_entry;      
-      init_page(gpage_entry);
-      gflag = 1;
+      *((kma_page_t**)gpage_entry->ptr) = gpage_entry;      
+      init_page(gpage_entry, 0);
+      page_t* first_page = (page_t*)(gpage_entry->ptr);
+      first_page->gflag = 1;
     }
    
   void* _first_fit = first_fit(size);
-  
+  /*
   page_t* first_page = (page_t*)(gpage_entry->ptr);
   entry_t* entry = (entry_t*)(first_page->first);
   if(entry)
@@ -114,7 +117,7 @@ kma_malloc(kma_size_t size)
 	}
     }
   printf("end\n");
-  
+  */
   return _first_fit;
 }
 
@@ -124,8 +127,8 @@ void add_entry(void* entry, int size)
  ((entry_t*)entry)->prev = NULL;
  page_t* first_page = (page_t*)(gpage_entry->ptr);
  void** first_entry = first_page->first;
- printf("++this entry %x will be added\n", entry);
- printf("++first entry %x\n", first_entry);
+ //printf("++this entry %x will be added\n", entry);
+ //printf("++first entry %x\n", first_entry);
  if(first_entry == NULL)
    {
      //printf("NULL\n");
@@ -166,23 +169,24 @@ void add_entry(void* entry, int size)
    }
 }
 
-void init_page(kma_page_t* page)
+void init_page(kma_page_t* page, int gflag)
 {
   if(gflag == 0)
     {
       // what if the first page is freed?
       page_t* first_page;
       first_page = (page_t*)page->ptr;
-      first_page->first = page->ptr + sizeof(page_t*);
+      first_page->first = page->ptr + sizeof(page_t);
       //*((kma_page_t**)(first_page->ptr)) = page;
-      add_entry((void*)(page->ptr + sizeof(page_t*)), PAGESIZE - sizeof(page_t*));
+      add_entry((void*)(page->ptr + sizeof(page_t)), PAGESIZE - sizeof(page_t));
+      first_page->page_count = 0;
     }
   else if(gflag == 2)
     {
       kma_page_t* new_page;
       page_t* first_page = (page_t*)gpage_entry->ptr;
       first_page->first = (void*)page->ptr;
-      gflag = 1;
+      first_page->gflag = 1;
       *((kma_page_t**)(new_page->ptr)) = page;
       add_entry((void*)(page->ptr + sizeof(kma_page_t*)), PAGESIZE - sizeof(kma_page_t*));
     }
@@ -191,20 +195,20 @@ void init_page(kma_page_t* page)
       kma_page_t* new_page;
       *((kma_page_t**)(new_page->ptr)) = page;
       add_entry((void*)(page->ptr + sizeof(kma_page_t*)), PAGESIZE - sizeof(kma_page_t*));
-    }
-      
+    }      
 }
 
 void delete_entry(entry_t* entry)
 {
-  printf("--this entry %x will be deleted\n", entry);
+  //printf("--this entry %x will be deleted\n", entry);
   if(entry->prev == NULL && entry->next == NULL)    
     // delete the only entry
     {
       //printf("delete\n");
       page_t* first_page = (page_t*)(gpage_entry->ptr);
       first_page->first = NULL;
-      gflag = 2;
+      first_page->gflag = 2;
+      //gflag = 2;
       return;
     }
   else if(entry->prev == NULL)   
@@ -268,14 +272,15 @@ void* first_fit(kma_size_t size)
     }
   kma_page_t* new_page = get_page();
   *((kma_page_t**)new_page->ptr) = new_page;
-  init_page(new_page);
+  init_page(new_page, first_page->gflag);
+  first_page->page_count++;
   return first_fit(size);
 }
 
 void
 kma_free(void* ptr, kma_size_t size)
 {
-  printf("FFthis ptr will be freed %x\n", ptr);
+  //printf("FFthis ptr will be freed %x\n", ptr);
   int min_size = sizeof(entry_t);
   if(size < min_size)
     size = min_size;
@@ -310,9 +315,9 @@ kma_free(void* ptr, kma_size_t size)
       }
       else if(next == NULL && ptr > (void*)first_entry)
 	{
-	  printf("NEXT==NULL\n");
+	  //printf("NEXT==NULL\n");
 	  // free after last entry
-	  printf("**first_entry %x, size %d\n", first_entry, first_entry->size);
+	  //printf("**first_entry %x, size %d\n", first_entry, first_entry->size);
 
 	  if((void*)first_entry + first_entry->size == ptr && BASEADDR(ptr) == BASEADDR(first_entry))
 	    {
@@ -360,14 +365,17 @@ kma_free(void* ptr, kma_size_t size)
 	    }
 	}
     }
+  //printf("$$ %d\n", first_page->page_count);
   //page_t* first_page = (page_t*)(gpage_entry->ptr);  
-  if(page == first_page->first && ((entry_t*)page)->next == NULL && ((entry_t*)page)->size == PAGESIZE - sizeof(page_t*) &&
+  if(((entry_t*)page)->size == PAGESIZE - sizeof(page_t) &&
      BASEADDR(page) == BASEADDR(gpage_entry->ptr))
     {
-      //kma_page_t* Fpage;
-      //Fpage = *((kma_page_t**)(page - sizeof(page_t*)));
-      //delete_entry((entry_t*)page);
-      free_page(gpage_entry);
+      if(first_page->page_count == 0)
+	{
+	  free_page(gpage_entry);
+	  gpage_entry = NULL;
+	}
+      return;
     }
   if(((entry_t*)page)->size == PAGESIZE - sizeof(kma_page_t*))
     {
@@ -375,8 +383,19 @@ kma_free(void* ptr, kma_size_t size)
       Fpage = *((kma_page_t**)(page - sizeof(kma_page_t*)));
       delete_entry((entry_t*)page);
       free_page(Fpage);
+      first_page->page_count--;
     }
-  
+  if(((entry_t*)first_page->first)->size == PAGESIZE - sizeof(page_t) &&
+     BASEADDR(first_page->first) == BASEADDR(gpage_entry->ptr))
+    {
+      if(first_page->page_count == 0)
+	{
+	  free_page(gpage_entry);
+	  gpage_entry = NULL;
+	}
+    }
+
+  /*  
   entry_t* entry = (entry_t*)(first_page->first);
   if(entry)
     {
@@ -392,7 +411,7 @@ kma_free(void* ptr, kma_size_t size)
 	  printf("\n");
 	}
     }
-    
+  */
 }
 
 #endif // KMA_RM
