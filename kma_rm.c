@@ -64,12 +64,10 @@ typedef struct{
 /************Global Variables*********************************************/
 kma_page_t* gpage_entry = NULL;
 int gflag = 0;
-//int gnum = 0; // for debug
+int gnum = 0; // for debug
 /************Function Prototypes******************************************/
 /* initialize a new page */
 void init_page(kma_page_t* page);
-/* change an entry */
-void* change_entry(void* entry, int offset, int size);
 /* add an entry */
 void add_entry(void* entry, int size);
 /* delete an entry */
@@ -83,9 +81,9 @@ void* first_fit(kma_size_t size);
 void*
 kma_malloc(kma_size_t size)
 {
-  //printf("num: %d; size: %d\n", gnum, size);
-  //gnum++;
-  //printf("begin\n");
+  printf("num: %d; size: %d\n", gnum, size);
+  gnum++;
+  printf("begin\n");
   int malloc_size = size + sizeof(void*);
   if(malloc_size > PAGESIZE)
     return NULL;
@@ -98,7 +96,7 @@ kma_malloc(kma_size_t size)
     }
    
   void* _first_fit = first_fit(size);
-  /*  
+  
   page_t* first_page = (page_t*)(gpage_entry->ptr);
   entry_t* entry = (entry_t*)(first_page->first);
   if(entry)
@@ -116,7 +114,7 @@ kma_malloc(kma_size_t size)
 	}
     }
   printf("end\n");
-  */
+  
   return _first_fit;
 }
 
@@ -126,9 +124,15 @@ void add_entry(void* entry, int size)
  ((entry_t*)entry)->prev = NULL;
  page_t* first_page = (page_t*)(gpage_entry->ptr);
  void** first_entry = first_page->first;
- //  printf("this entry %x will be added\n", entry);
- // printf("first entry %x\n", first_entry);
- if(entry == first_entry)
+ printf("++this entry %x will be added\n", entry);
+ printf("++first entry %x\n", first_entry);
+ if(first_entry == NULL)
+   {
+     //printf("NULL\n");
+     first_page->first = entry;
+     ((entry_t*)entry)->next = NULL;
+   }
+ else if(entry == first_entry)
    (((entry_t*)entry)->next) = NULL;
  else if ((void**)entry < first_entry)
    {
@@ -142,7 +146,6 @@ void add_entry(void* entry, int size)
        {
 	 first_entry =((void*)(((entry_t*)first_entry)->next));
        }
-     //printf("first_entry while next %x\n", first_entry);
      void* temp = ((entry_t*)first_entry)->next;
      if(temp == NULL && (void**)entry > first_entry)
        {
@@ -187,7 +190,7 @@ void init_page(kma_page_t* page)
 
 void delete_entry(entry_t* entry)
 {
-  //printf("this entry %x will be deleted\n", entry);
+  printf("--this entry %x will be deleted\n", entry);
   if(entry->prev == NULL && entry->next == NULL)    
     // delete the only entry
     {
@@ -221,11 +224,7 @@ void delete_entry(entry_t* entry)
       ((entry_t*)(entry->next))->prev = entry->prev;
     }
 }
-/*
-void* change_entry(void* entry, int offset, int size)
-{
-}
-*/
+
 void* first_fit(kma_size_t size) 
 {
   int min_size = sizeof(entry_t);
@@ -250,19 +249,13 @@ void* first_fit(kma_size_t size)
 	}
       else
 	{
-	  //printf("good-entry-size: %d\n", entry->size);
 	  add_entry((void*)(entry) + size, entry->size - size);
-	  //printf("add_entry in first_fit\n");
 	  delete_entry(entry);
-	  //printf("delete_entry in first_fit\n");
 	  return (void*)entry;
 	}
     }
   kma_page_t* new_page = get_page();
   *((kma_page_t**)new_page->ptr) = new_page;
-  //if(new_page->ptr > gpage_entry->ptr)
-  //printf("new_page %x\n", new_page->ptr);
-  //printf("get_page()\n");
   init_page(new_page);
   return first_fit(size);
 }
@@ -270,6 +263,7 @@ void* first_fit(kma_size_t size)
 void
 kma_free(void* ptr, kma_size_t size)
 {
+  printf("FFthis ptr will be freed %x\n", ptr);
   int min_size = sizeof(entry_t);
   if(size < min_size)
     size = min_size;
@@ -280,62 +274,84 @@ kma_free(void* ptr, kma_size_t size)
     {
       add_entry(ptr, size);
     }
-  while(first_entry->next != NULL && ptr > (void*)first_entry)
-    {
-      first_entry = (entry_t*)first_entry->next;
-    }
-  entry_t* prev = (entry_t*)first_entry->prev;
-  entry_t* next = (entry_t*)first_entry->next;
-  if(prev == NULL){
-    // free before first entry      
-    if(ptr + size == first_entry && BASEADDR(ptr) == BASEADDR(first_entry))
-	{
-	  size += first_entry->size;
-	  add_entry(ptr, size);
-	  delete_entry(first_entry);
-	}
-      else
-	add_entry(ptr, size);
-    }
-  else if(next == NULL && ptr > (void*)first_entry)
-    {
-      // free after last entry
-      if(first_entry + first_entry->size == ptr && BASEADDR(ptr) == BASEADDR(first_entry))
-	{
-	  size += first_entry->size;
-	  delete_entry(first_entry);
-	  add_entry(first_entry, size);
-	}
-      else
-	add_entry(ptr, size);
-    }
   else
-    // free inbetween
     {
-      if(ptr + size == first_entry &&
-	 prev + prev->size == ptr && 
-	 BASEADDR(ptr) == BASEADDR(prev) &&
-	 BASEADDR(ptr) == BASEADDR(first_entry))
+      while(first_entry->next != NULL && ptr > (void*)first_entry)
 	{
-	  delete_entry(first_entry);
-	  delete_entry(prev);
-	  add_entry(prev, size + prev->size + first_entry->size);
+	  first_entry = (entry_t*)first_entry->next;
 	}
-      else if(ptr + size == first_entry && BASEADDR(ptr) == BASEADDR(first_entry))
-	{
-	  size += first_entry->size;
+      entry_t* prev = (entry_t*)first_entry->prev;
+      entry_t* next = (entry_t*)first_entry->next;
+      if(prev == NULL && ptr < (void*)first_entry){
+	// free before first entry      
+	if(ptr + size == (void*)first_entry && BASEADDR(ptr) == BASEADDR(first_entry))
+	  {
+	    size += first_entry->size;
+	    add_entry(ptr, size);
+	    delete_entry(first_entry);
+	}
+	else
 	  add_entry(ptr, size);
-	  delete_entry(first_entry);
-	}
-      else if(prev + prev->size == ptr && BASEADDR(ptr) == BASEADDR(prev))
+      }
+      else if(next == NULL && ptr > (void*)first_entry)
 	{
-	  delete_entry(prev);
-	  add_entry(prev, size + prev->size);
+	  printf("NEXT==NULL\n");
+	  // free after last entry
+	  printf("**first_entry %x, size %d\n", first_entry, first_entry->size);
+
+	  if((void*)first_entry + first_entry->size && BASEADDR(ptr) == BASEADDR(first_entry))
+	    {
+	      size += first_entry->size;
+	      delete_entry(first_entry);
+	      add_entry(first_entry, size);
+	    }
+	  else
+	    add_entry(ptr, size);
 	}
       else
-	add_entry(ptr, size);
+	// free inbetween
+	{
+	  if(ptr + size == (void*)first_entry &&
+	     prev + prev->size == ptr && 
+	     BASEADDR(ptr) == BASEADDR(prev) &&
+	     BASEADDR(ptr) == BASEADDR(first_entry))
+	    {
+	      delete_entry(prev);
+	      add_entry((void*)prev, size + prev->size + first_entry->size);
+	      delete_entry(first_entry);
+	    }
+	  else if(ptr + size == (void*)first_entry && BASEADDR(ptr) == BASEADDR(first_entry))
+	    {
+	      size += first_entry->size;
+	      add_entry(ptr, size);
+	      delete_entry(first_entry);
+	    }
+	  else if((void*)prev + prev->size == ptr && BASEADDR(ptr) == BASEADDR(prev))
+	    {
+	      delete_entry(prev);
+	      add_entry((void*)prev, size + prev->size);
+	    }
+	  else
+	    add_entry(ptr, size);
+	}
     }
-    
+  //page_t* first_page = (page_t*)(gpage_entry->ptr);
+  
+  entry_t* entry = (entry_t*)(first_page->first);
+  if(entry)
+    {
+      int i;
+      if(entry)
+	{
+	  for(i=0;entry->next != NULL;i++)
+	    {
+	      printf("%d: %d\n", i, entry->size);
+	      entry = (entry_t*)(entry->next);
+	    }
+	  printf("%d: %d\n", i, entry->size);
+	  printf("\n");
+	}
+    }
     
 }
 
