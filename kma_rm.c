@@ -183,17 +183,17 @@ void init_page(kma_page_t* page, int gflag)
     }
   else if(gflag == 2)
     {
-      kma_page_t* new_page;
+      kma_page_t* new_page = page;
       page_t* first_page = (page_t*)gpage_entry->ptr;
       first_page->first = (void*)page->ptr;
       first_page->gflag = 1;
-      *((kma_page_t**)(new_page->ptr)) = page;
+      *((kma_page_t**)(new_page->ptr)) = new_page;
       add_entry((void*)(page->ptr + sizeof(kma_page_t*)), PAGESIZE - sizeof(kma_page_t*));
     }
   else
     {
-      kma_page_t* new_page;
-      *((kma_page_t**)(new_page->ptr)) = page;
+      kma_page_t* new_page = page;
+      *((kma_page_t**)(new_page->ptr)) = new_page;
       add_entry((void*)(page->ptr + sizeof(kma_page_t*)), PAGESIZE - sizeof(kma_page_t*));
     }      
 }
