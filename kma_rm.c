@@ -242,7 +242,7 @@ void* first_fit(kma_size_t size)
 	  entry = entry->next;
 	  continue;
 	}
-      else if(size >=  entry->size - min_size)
+      else if(size > entry->size - min_size)
 	{
 	  delete_entry(entry);
 	  return (void*)entry;
@@ -312,7 +312,7 @@ kma_free(void* ptr, kma_size_t size)
 	// free inbetween
 	{
 	  if(ptr + size == (void*)first_entry &&
-	     prev + prev->size == ptr && 
+	     (void*)prev + prev->size == ptr && 
 	     BASEADDR(ptr) == BASEADDR(prev) &&
 	     BASEADDR(ptr) == BASEADDR(first_entry))
 	    {
@@ -337,6 +337,7 @@ kma_free(void* ptr, kma_size_t size)
     }
   //page_t* first_page = (page_t*)(gpage_entry->ptr);
   
+
   entry_t* entry = (entry_t*)(first_page->first);
   if(entry)
     {
