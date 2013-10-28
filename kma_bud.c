@@ -100,29 +100,29 @@ kma_malloc(kma_size_t size)
   if(gpage == NULL)
     init_page();
   //free_list_t* freelist = NULL;
-  int malloc_size = size + sizeof(buf_t); 
-  if(malloc_size > PAGESIZE)
+  int _size = size + sizeof(buf_t); 
+  if(_size > PAGESIZE)
     return NULL;
   //freelst_t* freelist = find_list(malloc_size);
   freelst_t* freelist = NULL;
   buf_list_t* mainlist = (buf_list_t*)((void*)gpage->ptr + sizeof(buf_t));
-  if(malloc_size <= 32)
+  if(_size <= 32)
     freelist = &mainlist->buf32;
-  else if(malloc_size <= 64)
+  else if(_size <= 64)
     freelist = &mainlist->buf64;
-  else if(malloc_size <= 128)
+  else if(_size <= 128)
     freelist = &mainlist->buf128;
-  else if(malloc_size <= 256)
+  else if(_size <= 256)
     freelist = &mainlist->buf256;
-  else if(malloc_size <= 512)
+  else if(_size <= 512)
     freelist = &mainlist->buf512;
-  else if(malloc_size <= 1024)
+  else if(_size <= 1024)
     freelist = &mainlist->buf1024;
-  else if(malloc_size <= 2048)
+  else if(_size <= 2048)
     freelist = &mainlist->buf2048;
-  else if(malloc_size <= 4096)
+  else if(_size <= 4096)
     freelist = &mainlist->buf4096;
-  else if(malloc_size <= 8192)
+  else if(_size <= 8192)
     freelist = &mainlist->buf8192;
   //printf("SS %d\n", 1<<freelist->size);
   void* _buf = get_buf(freelist);
@@ -271,6 +271,7 @@ void buf_union(void* ptr)
 	  if(lst->first != NULL)
 	    lst->first->prev = buf;
 	  buf->next = (void*)lst->first;
+	  lst->first = buf;
 	  buf->prev = NULL;
 	}
     }
