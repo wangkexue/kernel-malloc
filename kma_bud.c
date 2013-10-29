@@ -50,28 +50,28 @@
  *  structures and arrays, line everything up in neat columns.
  */
 typedef struct{
-  unsigned char size;
-  void* next;
-  void* prev;
-  kma_page_t* page;
+  unsigned char        size;
+  void*                next;
+  void*                prev;
+  kma_page_t*          page;
 } buf_t;
 
 typedef struct free_list_t{
-  unsigned char size;
-  buf_t* first;
-  struct free_list_t* up;
+  unsigned char        size;
+  buf_t*               first;
+  struct free_list_t*  up;
 } freelst_t;
 
 typedef struct{
-  freelst_t buf32;
-  freelst_t buf64;
-  freelst_t buf128;
-  freelst_t buf256;
-  freelst_t buf512;
-  freelst_t buf1024;
-  freelst_t buf2048;
-  freelst_t buf4096;
-  freelst_t buf8192;
+  freelst_t            buf32;
+  freelst_t            buf64;
+  freelst_t            buf128;
+  freelst_t            buf256;
+  freelst_t            buf512;
+  freelst_t            buf1024;
+  freelst_t            buf2048;
+  freelst_t            buf4096;
+  freelst_t            buf8192;
   int in_use;
 } buf_list_t;
 /************Global Variables*********************************************/

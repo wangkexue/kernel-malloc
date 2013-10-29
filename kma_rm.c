@@ -50,15 +50,15 @@
  *  structures and arrays, line everything up in neat columns.
  */
 typedef struct{
-  int size;
+  int   size;
   //void* entry;
   void* next;
   void* prev;
 } entry_t;
 
 typedef struct{
-  int gflag;
-  int page_count;
+  int   gflag;
+  int   page_count;
   void* first;
   //void* ptr;
 } page_t;
