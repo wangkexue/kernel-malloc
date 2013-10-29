@@ -38,7 +38,9 @@
 /************System include***********************************************/
 #include <assert.h>
 #include <stdlib.h>
+#include <stdint.h>
 
+#include <stdio.h>
 /************Private include**********************************************/
 #include "kma_page.h"
 #include "kma.h"
@@ -49,6 +51,36 @@
  *  variables should be in all lower case. When initializing
  *  structures and arrays, line everything up in neat columns.
  */
+#define DEFA 1
+#define LATE 2
+typedef struct{
+  unsigned char size;
+  void* head;
+  void* prev;
+  kma_page_t* page;
+  unsigned char delay;
+} buf_t;
+
+typedef struct free_list_t{
+  unsigned char size;
+  unsigned char slack;
+  buf_t* first;
+  buf_t* last;
+  struct free_list_t* up;
+} freelst_t;
+
+typedef struct{
+  freelst_t buf32;
+  freelst_t buf64;
+  freelst_t buf128;
+  freelst_t buf256;
+  freelst_t buf512;
+  freelst_t buf1024;
+  freelst_t buf2048;
+  freelst_t buf4096;
+  freelst_t buf8192;
+  int in_use;
+} buf_list_t;
 
 /************Global Variables*********************************************/
 
@@ -58,16 +90,393 @@
 
 /**************Implementation***********************************************/
 
+/************Global Variables*********************************************/
+kma_page_t* gpage = NULL;
+/************Function Prototypes******************************************/
+/* initialize the control page of buddy system */
+void init_page();
+/* get buffer from the free list */
+void* get_buf(freelst_t* lst);
+/* remove a buffer from the free list */	
+void delete_buf(buf_t*, freelst_t*);
+/* find the right list for certain size */
+freelst_t* find_list(int);
+/* combine two free buddy */
+void buf_union(void*);
+/* get the address of buddy */
+void* getBud(void*, unsigned char);
+/************External Declaration*****************************************/
+
+/**************Implementation***********************************************/
+
 void*
 kma_malloc(kma_size_t size)
-{
-  return NULL;
+{ 
+  //printf("REQUEST %d\n", size);
+  if(gpage == NULL)
+    init_page();
+  //printf("GPAGE %x\n", gpage);
+  //free_list_t* freelist = NULL;
+  int _size = size + sizeof(buf_t); 
+  if(_size > PAGESIZE)
+    return NULL;
+  //freelst_t* freelist = find_list(malloc_size);
+  freelst_t* freelist = NULL;
+  buf_list_t* mainlist = (buf_list_t*)((void*)gpage->ptr + sizeof(buf_t));
+  if(_size <= 32)
+    freelist = &mainlist->buf32;
+  else if(_size <= 64)
+    freelist = &mainlist->buf64;
+  else if(_size <= 128)
+    freelist = &mainlist->buf128;
+  else if(_size <= 256)
+    freelist = &mainlist->buf256;
+  else if(_size <= 512)
+    freelist = &mainlist->buf512;
+  else if(_size <= 1024)
+    freelist = &mainlist->buf1024;
+  else if(_size <= 2048)
+    freelist = &mainlist->buf2048;
+  else if(_size <= 4096)
+    freelist = &mainlist->buf4096;
+  else if(_size <= 8192)
+    freelist = &mainlist->buf8192;
+  //printf("II %d\n", mainlist->in_use);
+  void* _buf = get_buf(freelist);
+  return _buf;
 }
 
-void
+void init_page()
+{
+  gpage = get_page();
+  buf_list_t* list = (buf_list_t*)((void*)gpage->ptr + sizeof(buf_t));
+  list->buf8192.size = 13;
+  list->buf4096.size = 12;
+  list->buf2048.size = 11;
+  list->buf1024.size = 10;
+  list->buf512.size = 9;
+  list->buf256.size = 8;
+  list->buf128.size = 7;
+  list->buf64.size = 6;
+  list->buf32.size = 5;
+  
+  list->buf8192.first = NULL;
+  list->buf4096.first = NULL;
+  list->buf2048.first = NULL;
+  list->buf1024.first = NULL;
+  list->buf512.first = NULL;
+  list->buf256.first = NULL;
+  list->buf128.first = NULL;
+  list->buf64.first = NULL;
+  list->buf32.first = NULL;
+  
+  list->buf8192.last = NULL;
+  list->buf4096.last = NULL;
+  list->buf2048.last = NULL;
+  list->buf1024.last = NULL;
+  list->buf512.last = NULL;
+  list->buf256.last = NULL;
+  list->buf128.last = NULL;
+  list->buf64.last = NULL;
+  list->buf32.last = NULL;
+  
+  list->buf8192.up = NULL;
+  list->buf4096.up = &list->buf8192;
+  list->buf2048.up = &list->buf4096;
+  list->buf1024.up = &list->buf2048;
+  list->buf512.up = &list->buf1024;
+  list->buf256.up = &list->buf512;
+  list->buf128.up = &list->buf256;
+  list->buf64.up = &list->buf128;
+  list->buf32.up = &list->buf64;
+
+  list->buf8192.slack = 0;
+  list->buf4096.slack = 0;
+  list->buf2048.slack = 0;
+  list->buf1024.slack = 0;
+  list->buf512.slack = 0;
+  list->buf256.slack = 0;
+  list->buf128.slack = 0;
+  list->buf64.slack = 0;
+  list->buf32.slack = 0;
+  
+  buf_t* buf = gpage->ptr;
+  buf->head = NULL;
+  buf->prev = NULL;
+  buf->delay = DEFA;
+  list->buf8192.first = buf;    // G++, N==
+  
+  kma_malloc(sizeof(buf_list_t));
+  list->in_use = 0;
+}
+
+void* get_buf(freelst_t* lst)
+{
+  //printf("++GET_BUF  %d\n", 1<<lst->size);
+  buf_list_t* list = (buf_list_t*)((void*)gpage->ptr + sizeof(buf_t));
+  list->in_use++;
+  if(lst->first == NULL)
+    {
+      if(lst->up == NULL)
+	{
+	  //printf("||\n");
+	  kma_page_t* page = get_page();
+	  buf_t* buf = page->ptr;
+	  buf->head = (void*)lst;
+	  buf->size = lst->size;
+	  buf->page = page;
+	  
+	  lst->slack++;
+	  buf->delay = DEFA;
+	  return ((void*)buf + sizeof(buf_t));
+	}
+      else
+	{
+	  //printf("----\n");
+	  buf_t* buf_l = (buf_t*)(get_buf(lst->up) - sizeof(buf_t));
+	  //printf("LS %d\n", 1<<lst->size);
+	  uintptr_t offset = 0x1<<lst->size;
+	  buf_t* buf_r = (buf_t*)((void*)buf_l + offset);
+	  if(lst->first != NULL)
+	    lst->first->prev = buf_r;
+	  buf_r->head = (void*)lst->first;
+	  lst->first = buf_r;
+	  buf_r->prev = NULL;
+	  buf_r->size = lst->size;
+	  buf_l->size = lst->size;
+	  buf_l->head = (void*)lst;
+          buf_r->delay = LATE;	
+          if(lst->last == NULL)
+	    lst->last = buf_r;
+ 	  return ((void*)buf_l + sizeof(buf_t));
+	}
+    }
+  //printf("==\n");
+  buf_t* buf = lst->first;
+  lst->first = buf->head;
+  buf->head = (void*)lst;
+  buf->size = lst->size;
+  if(lst->first != NULL)
+    lst->first->prev = NULL;
+
+  if(lst->last == NULL)
+    lst->last = buf->head;
+
+  if(!buf->delay)
+   buf->delay = DEFA;
+  if(buf->delay == DEFA)
+    lst->slack++;
+  else
+    lst->slack += 2;
+
+  return ((void*)buf + sizeof(buf_t));
+}
+
+void 
 kma_free(void* ptr, kma_size_t size)
 {
-  ;
+  //printf("--FREE\n");
+  buf_union(ptr);
+  buf_list_t* list = (buf_list_t*)((void*)gpage->ptr + sizeof(buf_t)); 
+  
+  //printf("GPAGE %x\n", gpage);
+  
+   if(list->in_use == 0)
+    {
+      free_page(gpage);
+      gpage = NULL;
+    }
+  
+  //printf("IO %d\n", list->in_use);
+}
+
+void buf_union(void* ptr)
+{
+  buf_list_t* list = (buf_list_t*)((void*)gpage->ptr + sizeof(buf_t));
+  list->in_use--;
+
+  buf_t* buf = (buf_t*)((void*)ptr - sizeof(buf_t));
+  freelst_t* lst = (freelst_t*)buf->head;
+  buf_t* bud = (buf_t*) getBud((void*)buf, lst->size);
+
+  //printf("SLACK %d\n", lst->slack);
+/*
+  if(bud->head == buf->head || lst->up == NULL || buf->size != bud->size)
+    // bud in use | in 8192 levle | not its bud
+    {
+      if(lst->up == NULL)
+	free_page(buf->page);
+      else
+	{
+	  if(lst->first != NULL)
+	    lst->first->prev = buf;
+	  buf->head = (void*)lst->first;
+	  lst->first = buf;
+	  buf->prev = NULL;
+	}
+    }
+  else
+    {
+      delete_buf(bud, lst);
+      if(buf > bud)
+	{
+	  
+	  buf_t* tmp = buf;
+	  buf = bud;
+	  bud = tmp;
+	}
+      buf->head = lst->up;
+      buf->size++;
+      buf_union((void*)buf + sizeof(buf_t));
+    }
+*/
+  
+  if(lst->slack >= 2)
+    // lazy
+    {
+
+      printf("lazy\n");
+      if(lst->up == NULL || buf->size != bud->size)
+	{
+	  if(buf->page == gpage || !buf->page)
+	   return;
+	  printf("FREE PAGE %x\n", buf->page);
+	  free_page(buf->page);
+	}
+      else
+	{
+	  buf->delay = LATE;
+	  lst->slack -= 2;
+	  // free it locally
+	  if(lst->first != NULL)
+	    lst->first->prev = buf;
+	  buf->head = (void*)lst->first;
+	  lst->first = buf;
+	  buf->prev = NULL;
+	}
+    }
+  else if(lst->slack ==1)
+    // reclaiming
+    {
+      printf("reclaiming\n");
+      buf->delay = DEFA;
+      lst->slack = 0;
+      // free it globally
+      if(bud->head == buf->head || lst->up == NULL || buf->size != bud->size)
+	// bud in use | in 8192 levle | first entry
+	{
+	  if(lst->up == NULL)
+	    {
+	      if(buf->page == gpage || !buf->page)
+	        return;
+	      printf("FREE PAGE %x\n", buf->page);
+	      free_page(buf->page);
+	    }
+	  else
+	    {
+	      if(lst->last == NULL)
+		{
+		  lst->first = buf;
+		  lst->last = buf;
+		  // lst->first->head = buf;
+		  buf->prev = lst->first;
+		  buf->head = NULL;
+		}
+	      else
+		{
+		  lst->last->head = buf;
+		  buf->prev = lst->last;
+		  lst->last = buf;
+		}
+	    }
+	}
+      else
+	{
+	  delete_buf(bud, lst);
+	  if(buf > bud)
+	    {
+	      buf_t* tmp = buf;
+	      buf = bud;
+	      bud = tmp;
+	    }
+	  buf->head = lst->up;
+	  buf->size++;
+	  buf_union((void*)buf + sizeof(buf_t));
+	}
+    }
+  else
+    // accelerate
+    {
+      buf->delay = DEFA;
+      printf("accelerate\n");
+      // free it globally 
+      if(bud->head == buf->head || lst->up == NULL || buf->size != bud->size)
+	// bud in use | in 8192 levle | not its bud
+	{
+	  if(lst->up == NULL)
+	    {
+	      if(buf->page == gpage || !buf->page)
+	        return;
+	      printf("FREE PAGE %x\n", buf->page);
+	      free_page(buf->page);
+	    }
+	  else
+	    {
+	      if(lst->first != NULL)
+		lst->first->prev = buf;
+	      buf->head = (void*)lst->first;
+	      lst->first = buf;
+	      buf->prev = NULL;
+	    }
+	}
+      else
+	{
+	  delete_buf(bud, lst);
+	  if(buf > bud)
+	    {     
+	      buf_t* tmp = buf;
+	      buf = bud;
+	      bud = tmp;
+	    }
+	  buf->head = lst->up;
+	  buf->size++;
+	  buf_union((void*)buf + sizeof(buf_t));
+	}
+      // select one "locally free" block, mark it "globally free" and free it globally
+      
+      buf_t* tmp = lst->first;
+      while(tmp != NULL && tmp->delay != LATE)
+	{
+	  tmp = tmp->head;
+	}
+      if(tmp != NULL)
+	{
+	  tmp->delay = DEFA;
+	  buf_union((void*)buf + sizeof(buf_t));
+	}
+    }
+  
+}
+
+void* getBud(void* buf, unsigned char size)
+{
+  uintptr_t size_t= 1<<size;
+  uintptr_t head= (uintptr_t)buf;
+  return (void*)(size_t ^ head);
+}
+
+void delete_buf(buf_t* buf, freelst_t* lst)
+{
+  buf_t* head = (buf_t*)buf->head;
+  buf_t* prev = (buf_t*)buf->prev;
+  if(lst->first == buf)
+      lst->first = head;
+  if(head != NULL)
+    head->prev = prev;
+  if(prev != NULL)
+    prev->head = head;
+  //if(head == NULL && prev != NULL)
+  // lst->last = prev;
 }
 
 #endif // KMA_LZBUD
