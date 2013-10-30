@@ -115,7 +115,7 @@ kma_malloc(kma_size_t size)
   //printf("REQUEST %d\n", size);
   if(gpage == NULL)
     init_page();
-  //printf("GPAGE %x\n", gpage);
+  //printf("GPAGE %p\n", gpage);
   //free_list_t* freelist = NULL;
   int _size = size + sizeof(buf_t); 
   if(_size > PAGESIZE)
@@ -279,7 +279,7 @@ kma_free(void* ptr, kma_size_t size)
   buf_union(ptr);
   buf_list_t* list = (buf_list_t*)((void*)gpage->ptr + sizeof(buf_t)); 
   
-  //printf("GPAGE %x\n", gpage);
+  //printf("GPAGE %p\n", gpage);
   
    if(list->in_use == 0)
     {
@@ -340,7 +340,7 @@ void buf_union(void* ptr)
 	{
 	  if(buf->page == gpage || !buf->page)
 	   return;
-	  printf("FREE PAGE %x\n", buf->page);
+	  printf("FREE PAGE %p\n", buf->page);
 	  free_page(buf->page);
 	}
       else
@@ -369,7 +369,7 @@ void buf_union(void* ptr)
 	    {
 	      if(buf->page == gpage || !buf->page)
 	        return;
-	      printf("FREE PAGE %x\n", buf->page);
+	      printf("FREE PAGE %p\n", buf->page);
 	      free_page(buf->page);
 	    }
 	  else
@@ -417,7 +417,7 @@ void buf_union(void* ptr)
 	    {
 	      if(buf->page == gpage || !buf->page)
 	        return;
-	      printf("FREE PAGE %x\n", buf->page);
+	      printf("FREE PAGE %p\n", buf->page);
 	      free_page(buf->page);
 	    }
 	  else
