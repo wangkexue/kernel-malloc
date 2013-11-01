@@ -103,7 +103,7 @@ kma_malloc(kma_size_t size)
   int _size = size + sizeof(buf_t); 
   if(_size > PAGESIZE)
     return NULL;
-  //freelst_t* freelist = find_list(malloc_size);
+ 
   freelst_t* freelist = NULL;
   buf_list_t* mainlist = (buf_list_t*)((void*)gpage->ptr + sizeof(buf_t));
   if(_size <= 32)
